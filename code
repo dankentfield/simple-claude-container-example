@@ -1,0 +1,38 @@
+#!/bin/bash
+set -e
+
+BRANCH="$1"
+
+if [ -z "$BRANCH" ]; then
+  echo "Usage: ./code <branch-name>"
+  exit 1
+fi
+
+# Create worktree directory name (replace / with -)
+WORKTREE_DIR="../${BRANCH//\//-}"
+
+# Create new branch and worktree
+git worktree add -b "$BRANCH" "$WORKTREE_DIR"
+
+cd "$WORKTREE_DIR"
+
+# Find an open port starting from 3000
+find_open_port() {
+  for port in $(seq 3000 3099); do
+    if ! lsof -i ":$port" >/dev/null 2>&1; then
+      echo "$port"
+      return
+    fi
+  done
+  echo "No open port found" >&2
+  exit 1
+}
+
+PORT=$(find_open_port)
+echo "Using port $PORT"
+
+# Start docker compose
+APP_PORT="$PORT" docker compose up -d
+
+# Open interactive Claude session
+docker compose exec claude-code claude
